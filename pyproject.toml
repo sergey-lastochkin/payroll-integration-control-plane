@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="1c-zup-payroll-automation"
+version="0.1.0"
+requires-python=">=3.11"
+description="Payroll-cycle control plane that leaves tax/payroll calculation inside ZUP while enforcing checks, approval, anomaly review, idempotent bank export, and reconciliation."
+
+[project.optional-dependencies]
+dev=["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+testpaths=["tests"]
+pythonpath=["src"]
+addopts="-q"

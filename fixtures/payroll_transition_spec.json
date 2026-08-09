@@ -1,0 +1,15 @@
+{
+  "same_state_is_noop": true,
+  "transitions": {
+    "draft": ["validation_failed", "ready_for_review"],
+    "validation_failed": ["ready_for_review"],
+    "ready_for_review": ["approved", "validation_failed"],
+    "approved": ["exporting"],
+    "exporting": ["exported", "manual_check"],
+    "exported": ["accepted", "rejected", "manual_check"],
+    "accepted": ["paid", "rejected", "manual_check"],
+    "paid": [],
+    "rejected": [],
+    "manual_check": []
+  }
+}
