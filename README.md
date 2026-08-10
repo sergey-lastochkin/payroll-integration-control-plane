@@ -44,6 +44,8 @@ python3.12 -m venv .venv
 
 All employee names, accounts and amounts are generated synthetic fixtures; the 250-employee generator is a functional demo dataset, not a load benchmark.
 
+CI also runs `ruff` and `compileall`; it does not call ZUP, a bank, or an external payroll service.
+
 ## Limitations
 
 - BSL is **not runtime-tested on a 1C/ZUP platform**.
