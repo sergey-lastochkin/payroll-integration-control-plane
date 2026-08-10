@@ -1,5 +1,7 @@
 # 1C ZUP Payroll Automation
 
+[![CI](https://github.com/sergey-lastochkin/payroll-integration-control-plane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sergey-lastochkin/payroll-integration-control-plane/actions/workflows/ci.yml)
+
 ## What
 
 A Python payroll-cycle control plane designed to consume ZUP-owned payroll results. ZUP remains authoritative for payroll and statutory tax calculation; this repository adds validation evidence, human approval, idempotent export, callbacks and reconciliation around that calculation.
