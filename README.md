@@ -1,56 +1,25 @@
-# 1C ZUP Payroll Automation
+# Выплата зарплаты из 1С:ЗУП под контролем
 
 [![CI](https://github.com/sergey-lastochkin/payroll-integration-control-plane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sergey-lastochkin/payroll-integration-control-plane/actions/workflows/ci.yml)
 
-## What
+Зарплату и налоги считает ЗУП, и я её тут не пересчитываю, НДФЛ тоже. Мой код встаёт вокруг этого расчёта: проверяет, просит человека утвердить, выгружает реестр в банк ровно один раз, принимает ответы банка и сверяет, всем ли дошло.
 
-A Python payroll-cycle control plane designed to consume ZUP-owned payroll results. ZUP remains authoritative for payroll and statutory tax calculation; this repository adds validation evidence, human approval, idempotent export, callbacks and reconciliation around that calculation.
+Зачем отдельно. Самая опасная ошибка в обмене зарплатой - когда «проверено», «утверждено», «отправлено» и «банк принял» живут в одном флажке. Тогда реестр уходит до проверки, или после проверки в нём что-то поменяли, а никто не заметил. Поэтому у цикла выплаты явные состояния, от `draft` до `paid` или до ручной проверки, и перескочить шаг нельзя.
 
-## Why
-
-Payroll exchange fails dangerously when validation, approval, export attempts and bank acceptance are represented by one flag. The explicit state machine prevents export before review, detects post-validation changes and preserves missing/unexpected reconciliation evidence.
-
-## Architecture
-
-- Payroll aggregate with guarded lifecycle from `draft` to `paid` or a terminal review state.
-- Rule engine for timesheets, employee/account integrity, negative/zero payments, salary deltas and tax-ratio anomalies.
-- In-memory and durable SQLite repositories enforcing one immutable dataset per payroll period, with persisted status history, approvals, callbacks and anomalies.
-- Mock/file bank adapters with deterministic batch ID and checksum.
-- Reconciliation service comparing expected active employees with synthetic statement rows.
-- BSL reference module that orchestrates ZUP-owned results without recalculating tax.
-
-## Key engineering decisions
-
-- Human approval is a required transition, not a UI convention.
-- A content digest prevents exporting a cycle changed after validation.
-- Batch export and callback processing are idempotent.
-- `approved → exporting` is a local claim before the external adapter; concurrent workers produce one local bank call and later callers receive the stored reference or an in-progress result.
-- Python and illustrative BSL state maps are checked against a canonical JSON transition fixture.
-- Rules report evidence and never silently alter financial values.
-- Missing expected rows and unexpected bank rows both force `manual_check`.
-
-## Run
+Что внутри. Правила проверяют табель, сотрудников и счета, нулевые и отрицательные выплаты, резкие скачки оклада и странное соотношение налога. Они только сообщают, что нашли, и никогда сами не меняют суммы. Утверждение человеком - обязательный переход, а не кнопка в интерфейсе. По содержимому считается отпечаток, и если после проверки что-то поменяли, выгрузить уже не дадут. Выгрузка и обработка ответов банка идемпотентны: два воркера одновременно дадут один вызов банка, второй получит уже сохранённый ответ или статус «в процессе». На период один неизменяемый набор данных, история статусов, утверждения и ответы банка хранятся в SQLite. Если кого-то не хватает в выписке или там кто-то лишний, цикл уходит в `manual_check`. Карты статусов в Python и в BSL сверяются с одним эталонным JSON, чтобы не разъехались.
 
 ```bash
 python3.12 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -e .
-```
-
-## Test
-
-```bash
 .venv/bin/python -m pip install -e '.[dev]'
 .venv/bin/python -m pytest -q
 ```
 
-All employee names, accounts and amounts are generated synthetic fixtures; the 250-employee generator is a functional demo dataset, not a load benchmark.
+Все сотрудники, счета и суммы в тестах сгенерированы, генератор на 250 сотрудников - это демо, а не замер нагрузки. CI ещё гоняет `ruff` и `compileall` и никуда наружу не ходит, ни в ЗУП, ни в банк.
 
-CI also runs `ruff` and `compileall`; it does not call ZUP, a bank, or an external payroll service.
+Что важно знать. BSL на платформе 1С/ЗУП я не запускал. Расчёт зарплаты и НДФЛ тут сознательно не повторяется. Настоящего банковского протокола, подписи, боевого хранилища, авторизации и планировщика нет. Защита от двойной отправки проверена для одного процесса, и если всё упадёт ровно между вызовом банка и сохранением ответа, отправка будет «хотя бы один раз», если только банк сам не отсекает повтор по номеру реестра.
 
-## Limitations
+---
+**English.** Payroll-cycle control plane around 1C:ZUP results: validation, human approval, idempotent bank export, callbacks and reconciliation. ZUP stays authoritative for payroll and tax; BSL is illustrative and not runtime-tested.
 
-- BSL is **not runtime-tested on a 1C/ZUP platform**.
-- The project deliberately does not reproduce ZUP payroll or NDFL calculation.
-- No real bank protocol, signing, production storage, auth or scheduler is included.
-- SQLite claim safety is tested for one process. A crash after a bank call and before local persistence remains at-least-once unless the downstream bank honours the deterministic batch ID.
+Сергей Ласточкин · [t.me/metaanswer](https://t.me/metaanswer)
